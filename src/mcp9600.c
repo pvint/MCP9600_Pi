@@ -91,6 +91,72 @@ void printLog( char *msg, unsigned int verbose, unsigned int level )
 	return;
 }
 
+float readTemp( int file, unsigned int address )
+{
+	ioctl( file, I2C_SLAVE, address );
+
+	char cfg[2];
+
+	cfg[0] = 0x05;
+	cfg[1] = 0x00;
+
+	write( file, cfg, 2 );
+
+	cfg[0] = 0x06;
+	cfg[1] = 0x00;
+
+	// check status flag
+	while( 1 )
+	{
+		char reg1[1] = {0x04};
+		write(file, reg1, 1);
+
+		char data1[1];
+		if(read(file, data1, 1) != 1)
+		{
+			return 0;
+		}	
+		else
+		{
+			if ( data1[0] & 0x40 )
+			{
+				// clear status flag
+				cfg[0] = 0x04;
+				data1[0] &= ~(1<<6);
+				cfg[1] = data1[0];
+				write( file, cfg, 2 );
+				break;
+			}
+		}
+
+		char reg[1] = {0x00};
+		write( file, reg, 1 );
+		char data[2] = {0};
+
+		if ( read( file, data, 2 ) != 2 )
+		{
+			printLog( "Error!", 1, 1 );
+		}
+		else
+		{
+			int lowTemp = data[0] & 0x80;
+
+			float ret;
+
+			if ( lowTemp )
+			{
+				ret = data[0] * 16 + data[1] / 16 - 4096;
+				return ret;
+			}
+			else
+			{
+				ret = data[0] * 16 + data[1] * 0.0625;
+				return ret;
+			}
+		}	
+	}
+}
+
 int main( int argc, char **argv )
 {
 	struct arguments arguments;
