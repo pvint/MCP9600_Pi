@@ -27,6 +27,7 @@ static struct argp_option options[] = {
 	{ "reset", 'R', 0, 0, "Reset PCA9685" },
 	{ "bus", 'b', "BUS", 0, "Bus number" },
 	{ "address", 'a', "ADDRESS", 0, "Address (ie 0x40)" },
+	{ "ambient", 'A', 0, 0, "Read ambient temperature" },
 	{ "verbose", 'v', "VERBOSITY", 0, "Verbose output" },
 	{ "help", 'h', 0, 0, "Show help" },
 	{ 0 }
@@ -91,6 +92,67 @@ void printLog( char *msg, unsigned int verbose, unsigned int level )
 	return;
 }
 
+int sensorConfig(  int file, unsigned int address, char thermocoupleType, unsigned char filterCoefficient )
+{
+	// Set the type: K, J, T, N, S, E, B, R 
+	// Set the filter coefficient - 0 (off) to 7 (max)
+	unsigned char type;
+	switch( thermocoupleType )
+	{
+		case 'K':
+			type = 0x00;
+			break;
+
+		case 'J':
+			type = 0x01;
+			break;
+
+		case 'T':
+			type = 0x02;
+			break;
+
+		case 'N':
+			type = 0x03;
+			break;
+
+		case 'S':
+			type = 0x04;
+			break;
+
+		case 'E':
+			type = 0x05;
+			break;
+
+		case 'B':
+			type = 0x06;
+			break;
+
+		case 'R':
+			type = 0x07;
+			break;
+
+		default:
+			printLog( "Bad thermocouple type.", 1, 1 );
+			exit( 1 );
+	}
+
+	// Shift type left 4 bits
+	type = type << 4;
+	// OR in the filter
+	type = type | filterCoefficient;
+
+	ioctl( file, I2C_SLAVE, address );
+
+	char cfg[2];
+	cfg[0] = 0x05;	// sensor config register
+	cfg[1] = type;
+
+	write( file, cfg, 2 );
+
+	
+
+}
+
 float readTemp( int file, unsigned int address )
 {
 	ioctl( file, I2C_SLAVE, address );
@@ -139,10 +201,12 @@ float readTemp( int file, unsigned int address )
 		}
 		else
 		{
+			// Check sign bit. 1 is Ta < 0C
 			int lowTemp = data[0] & 0x80;
 
 			float ret;
 
+			// Th temp is read differently >= 0C than <0C
 			if ( lowTemp )
 			{
 				ret = data[0] * 16 + data[1] / 16 - 4096;
