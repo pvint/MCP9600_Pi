@@ -28,6 +28,8 @@ static struct argp_option options[] = {
 	{ "bus", 'b', "BUS", 0, "Bus number" },
 	{ "address", 'a', "ADDRESS", 0, "Address (ie 0x40)" },
 	{ "ambient", 'A', 0, 0, "Read ambient temperature" },
+	{ "thermocouple", 't', "THERMOCOUPLE", 0, "Thermocouple type" },
+	{ "filter", "f", "FILTER", 0, "Filter coeffocient" },
 	{ "verbose", 'v', "VERBOSITY", 0, "Verbose output" },
 	{ "help", 'h', 0, 0, "Show help" },
 	{ 0 }
@@ -37,9 +39,8 @@ static struct argp_option options[] = {
 struct arguments
 {
 	char *args[2];                /* arg1 & arg2 */
-	unsigned int frequency, channels, bus, address, verbose, reset, rec709;
-	int step;
-	float dutycycle, luminosity;
+	unsigned int bus, address, verbose, reset, filter;
+	char *thermocouple;
 };
 
 /* Parse a single option. */
@@ -62,6 +63,13 @@ static error_t parse_opt ( int key, char *arg, struct argp_state *state )
 			break;
 		case 'R':
 			arguments->reset = 1;
+			break;
+		case 't':
+			arguments->thermocouple = arg;
+			printf("\nTYPE: %c ZZZ %s\n", arg, arg);
+			break;
+		case 'f':
+			arguments->filter = atoi( arg );
 			break;
 		case 'h':
 			//print_usage( "mcp9600" );
@@ -92,8 +100,10 @@ void printLog( char *msg, unsigned int verbose, unsigned int level )
 	return;
 }
 
-int sensorConfig(  int file, unsigned int address, char thermocoupleType, unsigned char filterCoefficient )
+int sensorConfig(  unsigned int bus, unsigned int address, unsigned char thermocoupleType, unsigned char filterCoefficient )
 {
+	int file;
+printf("Type: %c", thermocoupleType );	
 	// Set the type: K, J, T, N, S, E, B, R 
 	// Set the filter coefficient - 0 (off) to 7 (max)
 	unsigned char type;
@@ -141,15 +151,26 @@ int sensorConfig(  int file, unsigned int address, char thermocoupleType, unsign
 	// OR in the filter
 	type = type | filterCoefficient;
 
+	file = initHardware ( bus, address );
+
 	ioctl( file, I2C_SLAVE, address );
 
+	// Test getting device ID
+	//char r[1] = {0x20};
+	//write( file, r, 1 );
+
 	char cfg[2];
+	//read( file, cfg, 2 );
+	//printf("\nDeviceID: %02x %02x\n", cfg[0], cfg[1] );
+
+	
+	
 	cfg[0] = 0x05;	// sensor config register
 	cfg[1] = type;
 
 	write( file, cfg, 2 );
 
-	
+	return file;	
 
 }
 
@@ -159,66 +180,40 @@ float readTemp( int file, unsigned int address )
 
 	char cfg[2];
 
-	cfg[0] = 0x05;
-	cfg[1] = 0x00;
+	// Test getting ID
+	//char r[1] = {0x20};
+	//write( file, r, 1 );
+	//read( file, cfg, 2 );
+	//printf("\nDeviceID: %02x %02x\n", cfg[0], cfg[1] );
 
-	write( file, cfg, 2 );
+	//cfg[0] = 0x05;
+	//cfg[1] = 0x00;
 
-	cfg[0] = 0x06;
-	cfg[1] = 0x00;
+	//write( file, cfg, 2 );
 
-	// check status flag
-	while( 1 )
+	//cfg[0] = 0x06;
+	//cfg[1] = 0x00;
+
+	//char reg1[1] = {0x04};
+	//write(file, reg1, 1);
+
+	char reg1[1] = {0x00};
+	write(file, reg1, 1);
+	char data[2] = {0};
+	read( file, data, 2 );
+
+	int lowTemp = data[0] & 0x80;
+	float ret;
+	if ( lowTemp )
 	{
-		char reg1[1] = {0x04};
-		write(file, reg1, 1);
-
-		char data1[1];
-		if(read(file, data1, 1) != 1)
-		{
-			return 0;
-		}	
-		else
-		{
-			if ( data1[0] & 0x40 )
-			{
-				// clear status flag
-				cfg[0] = 0x04;
-				data1[0] &= ~(1<<6);
-				cfg[1] = data1[0];
-				write( file, cfg, 2 );
-				break;
-			}
-		}
-
-		char reg[1] = {0x00};
-		write( file, reg, 1 );
-		char data[2] = {0};
-
-		if ( read( file, data, 2 ) != 2 )
-		{
-			printLog( "Error!", 1, 1 );
-		}
-		else
-		{
-			// Check sign bit. 1 is Ta < 0C
-			int lowTemp = data[0] & 0x80;
-
-			float ret;
-
-			// Th temp is read differently >= 0C than <0C
-			if ( lowTemp )
-			{
-				ret = data[0] * 16 + data[1] / 16 - 4096;
-				return ret;
-			}
-			else
-			{
-				ret = data[0] * 16 + data[1] * 0.0625;
-				return ret;
-			}
-		}	
+		ret = data[0] * 16 + data[1] / 16 - 4096;
 	}
+	else
+	{
+		ret = data[0] * 16 + data[1] * 0.0625;
+	}
+	//printf("%f\n", ret);
+	return ret;
 }
 
 int main( int argc, char **argv )
@@ -230,10 +225,21 @@ int main( int argc, char **argv )
 	arguments.address = 0x40;
 	arguments.verbose = 0;
 	arguments.reset = 0;
+	arguments.thermocouple = 'K';
+	arguments.filter = '0';
 
 	/* Parse our arguments; every option seen by parse_opt will
 	be reflected in arguments. */
 	argp_parse ( &argp, argc, argv, 0, 0, &arguments );
+// int sensorConfig(  int file, unsigned int address, char thermocoupleType, unsigned char filterCoefficient )
+	int file = sensorConfig( arguments.bus, arguments.address, arguments.thermocouple, arguments.filter );
+
+	while ( 1 )
+	{
+		float temp = readTemp( file, 0x65 );
+		usleep ( 200000 );
+		printf("%.2f\n", temp);
+	}
 
 }
 
@@ -251,4 +257,8 @@ int initHardware( unsigned int adpt, unsigned int addr )
 		printLog( msg, 1, 1 );
 		exit( 1 );
 	}
+
+	//ioctl( file, I2C_SLAVE, addr );
+
+	return file;
 }
