@@ -236,7 +236,7 @@ int main( int argc, char **argv )
 
 	while ( 1 )
 	{
-		float temp = readTemp( file, 0x65 );
+		float temp = readTemp( file, arguments.address );
 		usleep ( 200000 );
 		printf("%.2f\n", temp);
 	}
