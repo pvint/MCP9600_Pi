@@ -19,7 +19,7 @@ $ ./mcp9600 -a 0x65 -b 1 -A  -f 2 -d 200
 
 **-b** bus (Example, for /dev/i2c-1 use -b 1)
 
-**-d** delay in ms (Example, to display temperature to STDOUT every 200 ms use -d 200  To display once and exit omit or set to 0.
+**-d** delay in ms (Example, to display temperature to STDOUT every 200 ms use -d 200) To display once and exit omit or set to 0.
 
 **-f** filter value. Set the MCP9600's internal filter from 0 (none) to 7 (max)
 
