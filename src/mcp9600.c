@@ -15,11 +15,10 @@
 
 // CLI Arguments
 // argp
-const char *argp_program_version = "fade9685";
+const char *argp_program_version = "mcp9600_pi";
 const char *argp_program_bug_address = "pjvint@gmail.com";
 
-static char doc[] = "fade9685 - simple CLI application to control PWM with a PCA9685 device on I2C";
-/* A description of the arguments we accept. */
+static char doc[] = "mcp9600 - simple CLI application to read thermocouple temperature with an MCP9600 device";
 static char args_doc[] = "ARG1 [STRING...]";
 
 
@@ -27,9 +26,10 @@ static struct argp_option options[] = {
 	{ "reset", 'R', 0, 0, "Reset PCA9685" },
 	{ "bus", 'b', "BUS", 0, "Bus number" },
 	{ "address", 'a', "ADDRESS", 0, "Address (ie 0x40)" },
-	{ "ambient", 'A', 0, 0, "Read ambient temperature" },
+	{ "ambient", 'A', 0, 0, "Read cold junction temperature" },
 	{ "thermocouple", 't', "THERMOCOUPLE", 0, "Thermocouple type" },
-	{ "filter", "f", "FILTER", 0, "Filter coeffocient" },
+	{ "filter", 'f', "FILTER", 0, "Filter coeffocient" },
+	{ "delay", 'd', "DELAY", 0, "Loop delay (ms) (if not set display once and exit)" },
 	{ "verbose", 'v', "VERBOSITY", 0, "Verbose output" },
 	{ "help", 'h', 0, 0, "Show help" },
 	{ 0 }
@@ -39,7 +39,7 @@ static struct argp_option options[] = {
 struct arguments
 {
 	char *args[2];                /* arg1 & arg2 */
-	unsigned int bus, address, verbose, reset, filter;
+	unsigned int bus, address, verbose, reset, filter, ambient, delay;
 	char *thermocouple;
 };
 
@@ -66,10 +66,15 @@ static error_t parse_opt ( int key, char *arg, struct argp_state *state )
 			break;
 		case 't':
 			arguments->thermocouple = arg;
-			printf("\nTYPE: %c ZZZ %s\n", arg, arg);
+			break;
+		case 'd':
+			arguments->delay = atoi( arg );
 			break;
 		case 'f':
 			arguments->filter = atoi( arg );
+			break;
+		case 'A':
+			arguments->ambient = 1;
 			break;
 		case 'h':
 			//print_usage( "mcp9600" );
@@ -103,7 +108,7 @@ void printLog( char *msg, unsigned int verbose, unsigned int level )
 int sensorConfig(  unsigned int bus, unsigned int address, unsigned char thermocoupleType, unsigned char filterCoefficient )
 {
 	int file;
-printf("Type: %c", thermocoupleType );	
+	
 	// Set the type: K, J, T, N, S, E, B, R 
 	// Set the filter coefficient - 0 (off) to 7 (max)
 	unsigned char type;
@@ -216,6 +221,31 @@ float readTemp( int file, unsigned int address )
 	return ret;
 }
 
+float readAmbientTemp( int file, unsigned int address )
+{
+	ioctl( file, I2C_SLAVE, address );
+
+	char cfg[2];
+
+	char reg1[1] = {0x02};
+	write(file, reg1, 1);
+	char data[2] = {0};
+	read( file, data, 2 );
+
+	int lowTemp = data[0] & 0x80;
+	float ret;
+	if ( lowTemp )
+	{
+		ret = data[0] * 16 + data[1] / 16 - 4096;
+	}
+	else
+	{
+		ret = data[0] * 16 + data[1] * 0.0625;
+	}
+	//printf("%f\n", ret);
+	return ret;
+}
+
 int main( int argc, char **argv )
 {
 	struct arguments arguments;
@@ -226,7 +256,9 @@ int main( int argc, char **argv )
 	arguments.verbose = 0;
 	arguments.reset = 0;
 	arguments.thermocouple = 'K';
-	arguments.filter = '0';
+	arguments.delay = 0;
+	arguments.filter = 0;
+	arguments.ambient = 0;
 
 	/* Parse our arguments; every option seen by parse_opt will
 	be reflected in arguments. */
@@ -236,9 +268,21 @@ int main( int argc, char **argv )
 
 	while ( 1 )
 	{
+		if ( arguments.ambient == 1 )
+		{
+			float temp = readAmbientTemp( file, arguments.address );
+			printf( "%.2f ", temp );
+		}
+
 		float temp = readTemp( file, arguments.address );
-		usleep ( 200000 );
 		printf("%.2f\n", temp);
+
+		if ( arguments.delay == 0 )
+		{
+			break;
+		}
+
+		usleep ( arguments.delay );
 	}
 
 }
