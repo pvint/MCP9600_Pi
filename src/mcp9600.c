@@ -68,7 +68,7 @@ static error_t parse_opt ( int key, char *arg, struct argp_state *state )
 			arguments->thermocouple = arg;
 			break;
 		case 'd':
-			arguments->delay = atoi( arg );
+			arguments->delay = atoi( arg ) * 1000;
 			break;
 		case 'f':
 			arguments->filter = atoi( arg );
