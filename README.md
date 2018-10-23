@@ -27,3 +27,9 @@ $ ./mcp9600 -a 0x65 -b 1 -A  -f 2 -d 200
 
 **-A** Display the ambient (cold junction) temperature
 
+### Compiling
+```
+$ mkdir build && cd build
+$ cmake ..
+$ make
+```
