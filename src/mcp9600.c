@@ -30,6 +30,7 @@ static struct argp_option options[] = {
 	{ "thermocouple", 't', "THERMOCOUPLE", 0, "Thermocouple type" },
 	{ "filter", 'f', "FILTER", 0, "Filter coeffocient" },
 	{ "delay", 'd', "DELAY", 0, "Loop delay (ms) (if not set display once and exit)" },
+	{ "quiet", 'q', 0, 0, "Suppress normal output, return temperature" },
 	{ "verbose", 'v', "VERBOSITY", 0, "Verbose output" },
 	{ "help", 'h', 0, 0, "Show help" },
 	{ 0 }
@@ -39,7 +40,7 @@ static struct argp_option options[] = {
 struct arguments
 {
 	char *args[2];                /* arg1 & arg2 */
-	unsigned int bus, address, verbose, reset, filter, ambient, delay;
+	unsigned int bus, address, verbose, reset, filter, ambient, delay, quiet;
 	char *thermocouple;
 };
 
@@ -75,6 +76,9 @@ static error_t parse_opt ( int key, char *arg, struct argp_state *state )
 			break;
 		case 'A':
 			arguments->ambient = 1;
+			break;
+		case 'q':
+			arguments->quiet = 1;
 			break;
 		case 'h':
 			//print_usage( "mcp9600" );
@@ -259,6 +263,7 @@ int main( int argc, char **argv )
 	arguments.delay = 0;
 	arguments.filter = 0;
 	arguments.ambient = 0;
+	arguments.quiet = 0;
 
 	/* Parse our arguments; every option seen by parse_opt will
 	be reflected in arguments. */
@@ -275,6 +280,12 @@ int main( int argc, char **argv )
 		}
 
 		float temp = readTemp( file, arguments.address );
+
+		if ( arguments.quiet != 0 )
+		{
+			return (int) temp;
+		}
+
 		printf("%.2f\n", temp);
 
 		if ( arguments.delay == 0 )
@@ -285,6 +296,7 @@ int main( int argc, char **argv )
 		usleep ( arguments.delay );
 	}
 
+	return 0;
 }
 
 int initHardware( unsigned int adpt, unsigned int addr )

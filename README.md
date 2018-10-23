@@ -27,6 +27,8 @@ $ ./mcp9600 -a 0x65 -b 1 -A  -f 2 -d 200
 
 **-A** Display the ambient (cold junction) temperature
 
+**-q** Suppress normal output, read temperature and exit returning the temperature (as integer)
+
 ### Compiling
 ```
 $ mkdir build && cd build
