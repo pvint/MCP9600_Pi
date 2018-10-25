@@ -188,6 +188,7 @@ float readTemp( int file, unsigned int address )
 	ioctl( file, I2C_SLAVE, address );
 
 	char cfg[2];
+	char reg1[1];
 
 	// Test getting ID
 	//char r[1] = {0x20};
@@ -206,7 +207,19 @@ float readTemp( int file, unsigned int address )
 	//char reg1[1] = {0x04};
 	//write(file, reg1, 1);
 
-	char reg1[1] = {0x00};
+	// Wait for status bit to be high
+	reg1[0] = 0x04;
+	write( file, reg1, 1 );
+
+	while ( (read( file, reg1, 1 ) && ( 1 << 6 )) == 0 )
+	{
+		usleep( 100000 );	// wait 100 ms
+	}
+
+	// clear the status bit (also sets "burst complete" bit to zero, but not important)
+	write( file, reg1, 0 );
+
+	reg1[0] = 0;
 	write(file, reg1, 1);
 	char data[2] = {0};
 	read( file, data, 2 );
