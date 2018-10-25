@@ -23,7 +23,7 @@ static char args_doc[] = "ARG1 [STRING...]";
 
 
 static struct argp_option options[] = {
-	{ "reset", 'R', 0, 0, "Reset PCA9685" },
+	{ "Resolution", 'r', "RESOLUTION", 0, "ADC Resolution. 0-3, 0=Max (18bit) 3 = min (12 bit)" },
 	{ "bus", 'b', "BUS", 0, "Bus number" },
 	{ "address", 'a', "ADDRESS", 0, "Address (ie 0x40)" },
 	{ "ambient", 'A', 0, 0, "Read cold junction temperature" },
@@ -40,7 +40,7 @@ static struct argp_option options[] = {
 struct arguments
 {
 	char *args[2];                /* arg1 & arg2 */
-	unsigned int bus, address, verbose, reset, filter, ambient, delay, quiet;
+	unsigned int bus, address, verbose, resolution, filter, ambient, delay, quiet;
 	char *thermocouple;
 };
 
@@ -62,8 +62,8 @@ static error_t parse_opt ( int key, char *arg, struct argp_state *state )
 		case 'v':
 			arguments->verbose = strtoul( arg, NULL, 10 );
 			break;
-		case 'R':
-			arguments->reset = 1;
+		case 'r':
+			arguments->resolution = atoi( arg );
 			break;
 		case 't':
 			arguments->thermocouple = arg;
@@ -82,6 +82,7 @@ static error_t parse_opt ( int key, char *arg, struct argp_state *state )
 			break;
 		case 'h':
 			//print_usage( "mcp9600" );
+			printf("Try --usage\n");
 			exit( 0 );
 			break;
 		case ARGP_KEY_ARG:
@@ -109,7 +110,7 @@ void printLog( char *msg, unsigned int verbose, unsigned int level )
 	return;
 }
 
-int sensorConfig(  unsigned int bus, unsigned int address, unsigned char thermocoupleType, unsigned char filterCoefficient )
+int sensorConfig(  unsigned int bus, unsigned int address, unsigned char thermocoupleType, unsigned char filterCoefficient, unsigned char config )
 {
 	int file;
 	
@@ -176,6 +177,12 @@ int sensorConfig(  unsigned int bus, unsigned int address, unsigned char thermoc
 	
 	cfg[0] = 0x05;	// sensor config register
 	cfg[1] = type;
+
+	write( file, cfg, 2 );
+
+	// set the device config (ADC resolution etc)
+	cfg[0] = 0x06;
+	cfg[1] = config;
 
 	write( file, cfg, 2 );
 
@@ -271,7 +278,7 @@ int main( int argc, char **argv )
 	arguments.bus = 1;
 	arguments.address = 0x40;
 	arguments.verbose = 0;
-	arguments.reset = 0;
+	arguments.resolution = 0;
 	arguments.thermocouple = 'K';
 	arguments.delay = 0;
 	arguments.filter = 0;
@@ -281,8 +288,10 @@ int main( int argc, char **argv )
 	/* Parse our arguments; every option seen by parse_opt will
 	be reflected in arguments. */
 	argp_parse ( &argp, argc, argv, 0, 0, &arguments );
-// int sensorConfig(  int file, unsigned int address, char thermocoupleType, unsigned char filterCoefficient )
-	int file = sensorConfig( arguments.bus, arguments.address, arguments.thermocouple, arguments.filter );
+
+	unsigned char config = arguments.resolution;
+
+	int file = sensorConfig( arguments.bus, arguments.address, arguments.thermocouple, arguments.filter, config );
 
 	while ( 1 )
 	{
