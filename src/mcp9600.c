@@ -23,10 +23,10 @@ static char args_doc[] = "ARG1 [STRING...]";
 
 
 static struct argp_option options[] = {
-	{ "Resolution", 'r', "RESOLUTION", 0, "ADC Resolution. 0-3, 0=Max (18bit) 3 = min (12 bit)" },
 	{ "bus", 'b', "BUS", 0, "Bus number" },
 	{ "address", 'a', "ADDRESS", 0, "Address (ie 0x40)" },
 	{ "ambient", 'A', 0, 0, "Read cold junction temperature" },
+	{ "Resolution", 'r', "RESOLUTION", 0, "ADC Resolution. 0-3, 0=Max (18bit) 3 = min (12 bit)" },
 	{ "thermocouple", 't', "THERMOCOUPLE", 0, "Thermocouple type" },
 	{ "filter", 'f', "FILTER", 0, "Filter coeffocient" },
 	{ "delay", 'd', "DELAY", 0, "Loop delay (ms) (if not set display once and exit)" },
@@ -276,7 +276,7 @@ int main( int argc, char **argv )
 
 	/* Default values. */
 	arguments.bus = 1;
-	arguments.address = 0x40;
+	arguments.address = 0x60;
 	arguments.verbose = 0;
 	arguments.resolution = 0;
 	arguments.thermocouple = 'K';
