@@ -31,9 +31,15 @@ $ ./mcp9600 -a 0x65 -b 1 -A  -f 2 -d 200
 
 **-q** Suppress normal output, read temperature and exit returning the temperature (as integer)
 
+### Dependanies/Prerequisites
+```
+$ sudo -i
+$ apt update
+$ apt install git build-essential cmake
+```
+
 ### Compiling
 ```
-$ cd /usr/local/src
 $ git clone https://github.com/pvint/MCP9600_Pi.git
 $ cd MCP90600_Pi
 $ mkdir build && cd build
