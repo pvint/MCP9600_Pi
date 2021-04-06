@@ -224,7 +224,9 @@ float readTemp( int file, unsigned int address )
 	}
 
 	// clear the status bit (also sets "burst complete" bit to zero, but not important)
-	write( file, reg1, 0 );
+	reg1[0] = 0x04;
+	reg1[1]= 0;
+	write( file, reg1, 2 );
 
 	reg1[0] = 0;
 	write(file, reg1, 1);
